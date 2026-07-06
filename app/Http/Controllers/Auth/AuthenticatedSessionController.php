@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,7 +13,7 @@ use Illuminate\View\View;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display login page.
+     * Show login page.
      */
     public function create(): View
     {
@@ -20,24 +21,24 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle login request.
+     * Login user.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // Authenticate user
         $request->authenticate();
 
-        // Prevent Session Fixation Attack
+        // Prevent Session Fixation
         $request->session()->regenerate();
 
-        // Update Last Login Time
+        // Update Last Login
         $request->user()->update([
             'last_login_at' => now(),
         ]);
 
-        // Redirect after login
-        return redirect()->intended(
-            route('dashboard', absolute: false)
+        //return $this->redirectToDashboard($request->user());
+
+        return redirect()->to(
+            $this->redirectToDashboard($request->user())
         );
     }
 
@@ -52,6 +53,27 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
+    }
+
+    /**
+     * Redirect user based on role.
+     */
+    private function redirectToDashboard(User $user): RedirectResponse
+    {
+        return match ($user->role->slug) {
+
+            'admin' =>
+            redirect()->route('admin.dashboard'),
+
+            'employer' =>
+            redirect()->route('employer.dashboard'),
+
+            'job_seeker' =>
+            redirect()->route('jobseeker.dashboard'),
+
+            default =>
+            abort(403, 'Unauthorized role.')
+        };
     }
 }
